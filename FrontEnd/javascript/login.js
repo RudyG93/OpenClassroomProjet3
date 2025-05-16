@@ -36,7 +36,7 @@ loginForm.addEventListener('submit', async (event) => {
         });
 
         if (!response.ok) {
-            throw new Error('Identifiants incorrects'); 
+            throw new Error('Identifiants incorrects');
         }
 
         const data = await response.json();
