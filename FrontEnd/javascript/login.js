@@ -36,7 +36,7 @@ loginForm.addEventListener('submit', async (event) => {
         });
 
         if (!response.ok) {
-            throw new Error('Identifiants incorrects');
+            throw new Error('Erreur dans l’identifiant ou le mot de passe');
         }
 
         const data = await response.json();
