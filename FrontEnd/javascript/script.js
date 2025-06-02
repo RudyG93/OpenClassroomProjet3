@@ -1,13 +1,15 @@
 let allWorks = [];
-
 const token = localStorage.getItem('token');
 
-const editBar = document.getElementById('edit-bar');
+const editBox = document.getElementById('edit-box');
+const editBanner = document.getElementById('edit-banner');
+
 const authLink = document.getElementById('auth');
 
 const modal = document.getElementById('modal');
-const openModalBtn = document.getElementById('open-modal-btn');
+const openModalBtn = document.getElementById('open-modal');
 const closeModalBtn = document.querySelector('.close-modal');
+const returnModalBtn = document.querySelector('.return-modal');
 const galleryView = document.querySelector('.modal-gallery-view');
 const addPhotoView = document.querySelector('.modal-add-photo-view');
 
@@ -80,8 +82,18 @@ function deleteWork(id, elementToRemove) {
     })
         .then(response => {
             if (!response.ok) throw new Error('Suppression échouée');
-            elementToRemove.remove(); // Supprime l’élément du DOM
-            allWorks = allWorks.filter(work => work.id !== id); // Mets à jour le tableau
+            elementToRemove.remove();
+            const mainGallery = document.querySelector('.gallery');
+            const figures = mainGallery.querySelectorAll('figure');
+
+            figures.forEach(figure => {
+                const img = figure.querySelector('img');
+                if (img && img.src === elementToRemove.querySelector('img').src) {
+                    figure.remove();
+                }
+            });
+
+            allWorks = allWorks.filter(work => work.id !== id);
             console.log(`Work ID ${id} supprimé avec succès`);
         })
         .catch(err => console.error('Erreur suppression :', err));
@@ -92,7 +104,7 @@ function loadGalleryInModal() {
     container.innerHTML = '';
 
     if (!Array.isArray(allWorks) || allWorks.length === 0) {
-        console.warn('⚠️ Aucune donnée à afficher dans la galerie modale.');
+        console.warn('Aucune donnée à afficher dans la galerie modale.');
         return;
     }
 
@@ -121,6 +133,14 @@ function loadCategories() {
         .then(data => {
             const select = document.getElementById('category');
             select.innerHTML = '';
+
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            defaultOption.hidden = true;
+            select.appendChild(defaultOption);
+
             data.forEach(category => {
                 const option = document.createElement('option');
                 option.value = category.id;
@@ -131,9 +151,15 @@ function loadCategories() {
 }
 
 if (token) {
-    editBar.classList.remove('hidden');
+    editBox.classList.remove('hidden');
+    editBanner.classList.remove('hidden');
     authLink.textContent = 'logout';
     authLink.style.cursor = 'pointer';
+
+    const categoryMenu = document.querySelector(".category-menu");
+    if (categoryMenu) {
+        categoryMenu.style.display = "none";
+    }
 
     authLink.addEventListener('click', () => {
         localStorage.removeItem('token');
@@ -158,6 +184,11 @@ closeModalBtn?.addEventListener('click', () => {
     modal.classList.add('hidden');
 });
 
+returnModalBtn?.addEventListener('click', () => {
+    addPhotoView.classList.add('hidden');
+    galleryView.classList.remove('hidden');
+});
+
 window.addEventListener('click', (e) => {
     if (e.target === modal) modal.classList.add('hidden');
 });
@@ -167,26 +198,31 @@ document.querySelector('.open-add-photo')?.addEventListener('click', () => {
     addPhotoView.classList.remove('hidden');
 });
 
-document.querySelector('.back-to-gallery')?.addEventListener('click', () => {
-    addPhotoView.classList.add('hidden');
-    galleryView.classList.remove('hidden');
-});
-
+const form = document.querySelector('.add-photo-form');
 const imageInput = document.getElementById('image-upload');
 const imagePreview = document.getElementById('image-preview');
+const titleInput = document.getElementById('title');
+const categorySelect = document.getElementById('category');
+const submitButton = form.querySelector('button[type="submit"]');
 
 imageInput.addEventListener('change', () => {
     const file = imageInput.files[0];
+    const uploadZone = document.querySelector('.upload-zone');
 
     if (!file) {
         imagePreview.innerHTML = '';
+        uploadZone.classList.remove('preview-mode');
         return;
     }
 
     const reader = new FileReader();
-
     reader.onload = function (e) {
+        uploadZone.classList.add('preview-mode');
         imagePreview.innerHTML = `<img src="${e.target.result}" alt="Aperçu image" class="preview-img">`;
+
+        // Permet de changer l'image en cliquant sur l'aperçu
+        const previewImg = imagePreview.querySelector('img');
+        previewImg.addEventListener('click', () => imageInput.click());
     };
 
     reader.readAsDataURL(file);
@@ -209,8 +245,6 @@ function addWorkToGallery(work) {
 
     gallery.appendChild(figure);
 }
-
-const form = document.querySelector('.add-photo-form');
 
 form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -244,20 +278,36 @@ form.addEventListener('submit', async (event) => {
 
         const newWork = await response.json();
         console.log('✅ Nouveau projet ajouté', newWork);
-
-        // Mets à jour la galerie principale
         addWorkToGallery(newWork);
-
-        // Mets à jour la galerie modale
         allWorks.push(newWork);
         loadGalleryInModal();
-
-        // Ferme la modale et reset
-        modal.classList.add('hidden');
         form.reset();
         imagePreview.innerHTML = '';
+        addPhotoView.classList.add('hidden');
+        galleryView.classList.remove('hidden');
     } catch (error) {
         console.error(error);
         alert("Une erreur est survenue lors de l'envoi.");
     }
 });
+
+function checkFormCompletion() {
+    if (
+        titleInput.value.trim() !== '' &&
+        categorySelect.value !== '' &&
+        imageInput.files.length > 0
+    ) {
+        submitButton.disabled = false;
+        submitButton.classList.remove('disabled');
+    } else {
+        submitButton.disabled = true;
+        submitButton.classList.add('disabled');
+    }
+}
+
+titleInput.addEventListener('input', checkFormCompletion);
+categorySelect.addEventListener('change', checkFormCompletion);
+imageInput.addEventListener('change', checkFormCompletion);
+
+submitButton.disabled = true;
+submitButton.classList.add('disabled');
